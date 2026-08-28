@@ -1,0 +1,268 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  background: #0a0806;
+  color: #fff;
+  font-family: -apple-system, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  overflow: hidden;           /* 关键：页面本身不滚动，滚动交给 wheel 事件驱动 */
+  height: 100%;
+}
+
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  padding: 24px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  color: #fff;
+}
+.nav-logo { font-size: 16px; font-weight: 700; letter-spacing: 0.2em; }
+.nav-menu { display: flex; gap: 32px; font-size: 12px; letter-spacing: 0.15em; opacity: 0.85; }
+.nav-menu a { color: #fff; text-decoration: none; cursor: pointer; }
+.nav-menu a:hover { color: #d4b06a; }
+
+.layer {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover;
+  object-position: center;
+  will-change: transform;
+}
+
+.layer-bg     { z-index: 1; transform-origin: center center; }
+.layer-angel  {
+  z-index: 2;
+  transform-origin: 50% 38%;   /* 脸部位置：放大中心钉在神像脸上，scale 时脸部不动，周围推到屏外 */
+}
+.layer-pillar {
+  z-index: 3;
+  transform-origin: center center;
+}
+
+.hint {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #d4b06a;
+  letter-spacing: 0.32em;
+  opacity: 0.75;
+  z-index: 20;
+  background: rgba(0,0,0,0.35);
+  padding: 8px 18px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.hint kbd {
+  display: inline-block;
+  min-width: 22px;
+  padding: 2px 6px;
+  margin: 0 2px;
+  border: 1px solid rgba(212,176,106,0.5);
+  border-radius: 3px;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: #d4b06a;
+}
+
+/* 底部进度条：直观看到「推进到哪了」，也可以直接点/拖 */
+.progress-track {
+  position: fixed;
+  left: 50%;
+  bottom: 78px;
+  transform: translateX(-50%);
+  width: min(420px, 60vw);
+  height: 4px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 2px;
+  z-index: 20;
+  cursor: pointer;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #d4b06a;
+  border-radius: 2px;
+  transition: none;
+}
+.progress-label {
+  position: fixed;
+  left: 50%;
+  bottom: 92px;
+  transform: translateX(-50%);
+  font-size: 12px;
+  letter-spacing: 0.35em;
+  color: #d4b06a;
+  opacity: 0.85;
+  z-index: 20;
+}
+
+/* ===== 转场后的视频画面 ===== */
+.video-scene {
+  position: fixed; inset: 0;
+  z-index: 7;                    /* 卡片(8)下方、神像(2)上方 */
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgba(70,58,40,0.25), rgba(5,4,3,0.95) 70%),
+    #050403;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s ease;
+  display: flex; align-items: center; justify-content: center;
+}
+.video-scene.show { opacity: 1; pointer-events: auto; }
+.video-scene video { width: 100%; height: 100%; object-fit: cover; }
+
+/* ===== 横排一字卡（米色调，仿「FALL INTO REVERIE」参考图） ===== */
+.cards-stage {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  width: 0; height: 0;
+  z-index: 8;                 /* 高于三层图(1/2/3)和视频场景(7)，低于导航(10)和进度条(20) */
+  pointer-events: none;
+}
+.card {
+  position: absolute;
+  left: 0; top: 0;
+  width: 220px;
+  height: 290px;
+  margin-left: -110px;        /* 让 (0,0) 对齐卡片中心 */
+  margin-top: -145px;
+  border-radius: 16px;
+  cursor: pointer;
+  pointer-events: auto;
+  padding: 26px 24px;
+  /* 米色主调：上方稍亮（光源从上来），下方稍深一档做厚度感 */
+  background: linear-gradient(165deg, #e7d4b3 0%, #dac4a3 65%, #cfb88f 100%);
+  box-shadow:
+    0 22px 50px rgba(0,0,0,0.55),
+    0 6px 14px rgba(0,0,0,0.35),
+    inset 0 1px 0 rgba(255,255,255,0.28);    /* 顶上一抹高光 */
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1), box-shadow 0.35s ease;
+  will-change: transform, opacity;
+  overflow: visible;
+}
+.card:hover {
+  box-shadow:
+    0 30px 70px rgba(0,0,0,0.68),
+    0 8px 20px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(255,255,255,0.32);
+}
+.card-num {
+  position: absolute;
+  top: 16px; right: 16px;
+  width: 34px; height: 34px;
+  border: 1px solid rgba(58, 42, 26, 0.35);
+  border-radius: 50%;
+  background: rgba(255,255,255,0.10);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #3a2a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-title {
+  margin-top: 64px;
+  font-family: Georgia, 'Playfair Display', 'Times New Roman', serif;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: 0.005em;
+  color: #2b1f12;
+}
+.card-desc {
+  margin-top: 14px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: rgba(43, 31, 18, 0.70);
+  letter-spacing: 0.01em;
+}
+.card-play {
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.92);
+  display: flex;
+  align-items: center; justify-content: center;
+  font-size: 22px;
+  color: #2b1f12;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.35);
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16,1,0.3,1);
+  pointer-events: none;
+}
+.card.playing .card-play { opacity: 1; }
+.card.playing {
+  /* 激活态用阴影加强，不用 !important transform（会覆盖 JS 算的位移） */
+  box-shadow:
+    0 32px 78px rgba(0,0,0,0.72),
+    0 10px 22px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.36);
+}
+.card:hover .card-play { opacity: 1; }
+
+/* ===== 卡片详情浮层 ===== */
+.card-overlay {
+  position: fixed; inset: 0;
+  z-index: 30;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center; justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.card-overlay.show { opacity: 1; pointer-events: auto; }
+.card-overlay-panel {
+  width: min(680px, 88vw);
+  border-radius: 20px;
+  border: 1px solid rgba(212,176,106,0.4);
+  background: linear-gradient(160deg, rgba(28,23,16,0.96), rgba(12,10,7,0.92));
+  padding: 44px;
+  color: #fff;
+  transform: translateY(20px) scale(0.96);
+  transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+  position: relative;
+}
+.card-overlay.show .card-overlay-panel { transform: translateY(0) scale(1); }
+.card-overlay-close {
+  position: absolute; top: 16px; right: 20px;
+  font-size: 22px; line-height: 1;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+}
+.card-overlay-close:hover { color: #d4b06a; }
+.card-overlay-num {
+  width: 56px; height: 56px;
+  border: 1px solid rgba(212,176,106,0.5);
+  border-radius: 50%;
+  background: rgba(212,176,106,0.10);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 16px;
+  color: #d4b06a;
+  display: flex;
+  align-items: center; justify-content: center;
+  letter-spacing: 0.05em;
+}
+.card-overlay-title { margin-top: 16px; font-size: 30px; font-weight: 700; letter-spacing: 0.02em; }
+.card-overlay-tag { margin-top: 6px; font-size: 11px; letter-spacing: 0.28em; color: #d4b06a; }
+.card-overlay-desc { margin-top: 22px; font-size: 15px; line-height: 1.8; color: rgba(255,255,255,0.78); }
+
+/* ===== 光标粒子群（SwarmCursor 组件的 canvas） ===== */
+/* 最顶层、不挡鼠标点击：粒子只「看」鼠标，不拦截任何交互 */
+.swarm-cursor {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+}
